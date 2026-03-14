@@ -5,9 +5,10 @@ const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
-export const generateContent = async (contents) => {
+export const generateContent = async (contents, config = {}) => {
   return await ai.models.generateContent({
     model: GEMINI_MODEL,
     contents,
+    config,
   });
 };
