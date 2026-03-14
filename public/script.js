@@ -1,97 +1,103 @@
-const form = document.getElementById("chat-form");
-const input = document.getElementById("user-input");
-const chatBox = document.getElementById("chat-box");
+document.addEventListener("DOMContentLoaded", () => {
+  const conversation = [];
+  const form = document.getElementById("chat-form");
+  const input = document.getElementById("user-input");
+  const chatBox = document.getElementById("chat-box");
 
-form.addEventListener("submit", function (e) {
-  e.preventDefault();
+  function scrollToBottom() {
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
 
-  const userMessage = input.value.trim();
-  if (!userMessage) return;
+  function renderMarkdown(markdownText) {
+    const rawHTML = marked.parse(markdownText);
+    return DOMPurify.sanitize(rawHTML);
+  }
 
-  appendMessage("user", userMessage);
-  // Clear the input field
-  input.value = "";
+  function createMessage(content, role, isHTML = false) {
+    const wrapper = document.createElement("div");
 
-  // Show "Thinking..." message
-  const thinkingMessage = appendMessage("bot", "Thinking..."); // Store the element
+    wrapper.className = role === "user" ? "flex justify-end mb-3" : "flex justify-start mb-3";
 
-  // Send the user message to the backend
-  fetch("http://localhost:3000/api/chat", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      conversation: [{ role: "user", text: userMessage }],
-    }),
-  })
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Network response was not ok " + response.statusText);
-      }
-      return response.json();
-    })
-    .then((data) => {
-      if (data && data.result) {
-        removeThinkingMessage(thinkingMessage);
-        appendMessage("bot", data.result); // Append bot's message
-      }
-    })
-    .catch((error) => {
-      console.error("Error:", error);
-      // Remove "Thinking..." message
-      chatBox.removeChild(thinkingMessage);
-      appendMessage("bot", "Failed to get response from server.");
+    const bubble = document.createElement("div");
+
+    bubble.className = role === "user" ? "bg-blue-500 text-white px-4 py-2 rounded-2xl shadow max-w-[70%]" : "bg-gray-200 text-gray-800 px-4 py-2 rounded-2xl shadow max-w-[70%]";
+
+    if (isHTML) {
+      bubble.innerHTML = content;
+    } else {
+      bubble.textContent = content;
+    }
+
+    wrapper.appendChild(bubble);
+    chatBox.appendChild(wrapper);
+
+    scrollToBottom();
+
+    return bubble;
+  }
+
+  function createTypingIndicator() {
+    const typingHTML = `
+      <div class="typing">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    `;
+
+    return createMessage(typingHTML, "bot", true);
+  }
+
+  async function sendMessage(message) {
+    conversation.push({ role: "user", text: message });
+
+    const response = await fetch("http://localhost:3000/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        conversation: conversation,
+      }),
     });
+
+    if (!response.ok) {
+      throw new Error("Server error");
+    }
+
+    const data = await response.json();
+
+    return data.result;
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const message = input.value.trim();
+
+    if (!message) return;
+
+    createMessage(message, "user");
+
+    input.value = "";
+
+    // tampilkan animasi loading
+    const typingBubble = createTypingIndicator();
+
+    try {
+      const aiReply = await sendMessage(message);
+
+      if (aiReply) {
+        typingBubble.innerHTML = renderMarkdown(aiReply);
+        conversation.push({ role: "model", text: aiReply });
+      } else {
+        typingBubble.textContent = "Sorry, no response received.";
+      }
+    } catch (error) {
+      console.error(error);
+      typingBubble.textContent = "Failed to get response from server.";
+    }
+
+    scrollToBottom();
+  });
 });
-
-function removeThinkingMessage(thinkingMessage) {
-  if (thinkingMessage && chatBox.contains(thinkingMessage)) {
-    chatBox.removeChild(thinkingMessage);
-  } else {
-    console.warn("Thinking message not found in chat box or already removed.");
-  }
-}
-
-function appendMessage(sender, text) {
-  const msg = document.createElement("div");
-  msg.classList.add("message", sender);
-  const html = marked.parse(text);
-  msg.innerHTML = html;
-  chatBox.appendChild(msg);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-const themeToggle = document.getElementById("theme-toggle");
-const body = document.body;
-
-// Function to set the theme
-function setTheme(theme) {
-  if (theme === "dark") {
-    body.classList.add("dark-mode");
-    themeToggle.textContent = "Light Mode";
-  } else {
-    body.classList.remove("dark-mode");
-    themeToggle.textContent = "Dark Mode";
-  }
-  localStorage.setItem("theme", theme); // Save the theme to localStorage
-}
-
-// Event listener for the theme toggle button
-themeToggle.addEventListener("click", function () {
-  if (body.classList.contains("dark-mode")) {
-    setTheme("light");
-  } else {
-    setTheme("dark");
-  }
-});
-
-// Get the saved theme from localStorage
-const savedTheme = localStorage.getItem("theme");
-
-// Set the theme on initial load
-if (savedTheme) {
-  setTheme(savedTheme);
-} else {
-  setTheme("light"); // Default to light mode
-}
