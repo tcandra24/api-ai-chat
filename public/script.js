@@ -14,9 +14,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function createMessage(content, role, isHTML = false) {
+    const containerChat = document.createElement("div");
     const wrapper = document.createElement("div");
+    const avatarImage = document.createElement("img");
 
-    wrapper.className = role === "user" ? "flex justify-end mb-3" : "flex justify-start mb-3";
+    containerChat.className = role === "user" ? "flex justify-end w-full" : "flex justify-start w-full";
+    avatarImage.className = "w-10 h-10 rounded-full";
+    wrapper.className = role === "user" ? "flex flex-row-reverse justify-end mb-3 gap-2" : "flex flex-row justify-start mb-3 gap-2";
+
+    avatarImage.src = role === "user" ? "/assets/img/avatar/user-no-bg.png" : "/assets/img/avatar/ai-no-bg.png";
 
     const bubble = document.createElement("div");
 
@@ -27,9 +33,12 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       bubble.textContent = content;
     }
-
+    wrapper.appendChild(avatarImage);
     wrapper.appendChild(bubble);
-    chatBox.appendChild(wrapper);
+
+    containerChat.appendChild(wrapper);
+
+    chatBox.appendChild(containerChat);
 
     scrollToBottom();
 
@@ -70,21 +79,69 @@ document.addEventListener("DOMContentLoaded", () => {
     return data.result;
   }
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  async function sendMessageStream(message) {
+    conversation.push({ role: "user", text: message });
 
-    const message = input.value.trim();
-
-    if (!message) return;
-
-    createMessage(message, "user");
-
-    input.value = "";
-
-    // tampilkan animasi loading
     const typingBubble = createTypingIndicator();
 
     try {
+      const response = await fetch("http://localhost:3000/api/chat-stream", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          conversation: conversation,
+        }),
+      });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      let aiText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        lines.forEach((line) => {
+          if (line.startsWith("data: ")) {
+            const data = line.replace("data: ", "");
+
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              bubble.textContent = "⚠️ AI service error";
+              return;
+            }
+
+            if (parsed.done) return;
+
+            if (parsed.text) {
+              aiText += parsed.text;
+
+              typingBubble.innerHTML = renderMarkdown(aiText);
+              scrollToBottom();
+            }
+          }
+        });
+      }
+
+      conversation.push({ role: "model", text: aiText });
+    } catch (error) {
+      typingBubble.textContent = "Sorry, no response received.";
+    }
+  }
+
+  async function handleMessage(message, mode) {
+    if (mode === "stream") {
+      await sendMessageStream(message);
+    } else {
+      // tampilkan animasi loading
+      const typingBubble = createTypingIndicator();
       const aiReply = await sendMessage(message);
 
       if (aiReply) {
@@ -93,6 +150,23 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         typingBubble.textContent = "Sorry, no response received.";
       }
+    }
+  }
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const message = input.value.trim();
+    const mode = document.getElementById("mode-select").value;
+
+    if (!message) return;
+
+    createMessage(message, "user");
+
+    input.value = "";
+
+    try {
+      await handleMessage(message, mode);
     } catch (error) {
       console.error(error);
       typingBubble.textContent = "Failed to get response from server.";

@@ -23,7 +23,10 @@
       <!-- Input Area -->
       <form id="chat-form" class="border-t p-4 flex gap-2">
         <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" class="flex-1 border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-
+        <select name="mode" id="mode-select" class="border rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="default">Default</option>
+          <option value="stream">Stream</option>
+        </select>
         <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-xl">Send</button>
       </form>
     </div>

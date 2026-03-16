@@ -12,3 +12,11 @@ export const generateContent = async (contents, config = {}) => {
     config,
   });
 };
+
+export const generateContentStream = async (contents, config = {}) => {
+  return await ai.models.generateContentStream({
+    model: GEMINI_MODEL,
+    contents,
+    config,
+  });
+};
