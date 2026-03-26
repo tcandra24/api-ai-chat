@@ -61,7 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       conversation.push({ role: "user", text: message });
 
-      const response = await fetch("http://localhost:3000/api/chat", {
+      const response = await fetch("api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -89,7 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const typingBubble = createTypingIndicator();
 
     try {
-      const response = await fetch("http://localhost:3000/api/chat-stream", {
+      const response = await fetch("api/chat-stream", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
