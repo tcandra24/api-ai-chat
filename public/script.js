@@ -58,25 +58,29 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function sendMessage(message) {
-    conversation.push({ role: "user", text: message });
+    try {
+      conversation.push({ role: "user", text: message });
 
-    const response = await fetch("http://localhost:3000/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        conversation: conversation,
-      }),
-    });
+      const response = await fetch("http://localhost:3000/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          conversation: conversation,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error("Server error");
+      if (!response.ok) {
+        throw new Error("Server error");
+      }
+
+      const data = await response.json();
+
+      return data.result;
+    } catch (error) {
+      return false;
     }
-
-    const data = await response.json();
-
-    return data.result;
   }
 
   async function sendMessageStream(message) {
