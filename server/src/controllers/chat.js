@@ -1,7 +1,5 @@
 import { generateContent } from "../services/gemini.js";
-import { readFileSync } from "fs";
-
-const instructionMarkDown = readFileSync("./server/instruction.md", "utf-8");
+import { instruction } from "../config/index.js";
 
 export const store = async (req, res) => {
   try {
@@ -14,7 +12,7 @@ export const store = async (req, res) => {
 
     const response = await generateContent(contents, {
       temperature: 1.3,
-      systemInstruction: instructionMarkDown,
+      systemInstruction: instruction,
     });
 
     res.status(200).json({
